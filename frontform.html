@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Front-Form (Light-Front) Visualization — KaTeX</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- KaTeX CSS -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" />
+  <style>
+    html, body { margin: 0; padding: 0; background: #121828; overflow: hidden; }
+    canvas { display: block; width: 100vw; height: 100vh; }
+
+    #title {
+      position: fixed; top: 32px; left: 50%; transform: translateX(-50%);
+      font-size: 2.2vw; font-family: 'Segoe UI', Arial, sans-serif; font-weight: 700;
+      color: #e2ebff; text-shadow: 0 2px 22px #2bc2ee4c; letter-spacing: 2px;
+      opacity: 0.97; pointer-events: none; z-index: 100; user-select: none;
+      text-align: center;
+    }
+    #subtitle {
+      position: fixed; top: 76px; left: 50%; transform: translateX(-50%);
+      font-size: 1.1vw; font-family: 'Consolas','Segoe UI',Arial,sans-serif;
+      color: #aaf9fc; text-shadow: 0 1px 13px #6cc1eab4;
+      opacity: 0.93; pointer-events: none; z-index: 100; user-select: none; text-align: center;
+    }
+
+    /* Formula layer rendered by KaTeX (HTML overlay over canvas) */
+    #formula-layer {
+      position: fixed; inset: 0; z-index: 50; pointer-events: none;
+      opacity: 0; transition: opacity 400ms ease;
+    }
+    .formula {
+      position: absolute;
+      color: #ffd5d5;
+      text-shadow: 0 0 12px rgba(255, 213, 213, 0.35);
+      will-change: transform, opacity;
+    }
+    .display { font-size: clamp(16px, 1.6vw, 30px); }
+    .inline  { font-size: clamp(13px, 1.2vw, 24px); }
+
+    @media (max-width: 900px) {
+      #title { font-size: 4vw; }
+      #subtitle { font-size: 2.4vw; }
+    }
+  </style>
+</head>
+<body>
+  <div id="title">Light-Front Dynamics</div>
+  <div id="subtitle">
+    <span id="subtitle-math"></span> &nbsp; | &nbsp; Parton Fields
+  </div>
+
+  <canvas id="frontformwall"></canvas>
+
+  <!-- Formula overlay (to be rendered by KaTeX) -->
+  <div id="formula-layer">
+    <div class="formula display" id="f1"></div>
+    <div class="formula display" id="f2"></div>
+    <div class="formula display" id="f3"></div>
+    <div class="formula display" id="f4"></div>
+
+    <div class="formula inline" id="f5"></div>
+    <div class="formula inline" id="f6"></div>
+    <div class="formula inline" id="f7"></div>
+    <div class="formula inline" id="f8"></div>
+
+    <div class="formula inline" id="f9"></div>
+    <div class="formula inline" id="f10"></div>
+    <div class="formula inline" id="f11"></div>
+    <div class="formula inline" id="f12"></div>
+
+    <div class="formula display" id="f13"></div>
+  </div>
+
+  <!-- KaTeX JS -->
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+
+  <script>
+    // 1) Render KaTeX (no raw LaTeX shown)
+    const katexRenderAll = () => {
+      // Subtitle math
+      const subtitleMath = String.raw`x^{+}=\dfrac{x^{0}+x^{3}}{\sqrt{2}}=\text{const}`;
+      katex.render(subtitleMath, document.getElementById('subtitle-math'), { displayMode: false });
+
+      // Canonical light-front equations (proper notation)
+      const formulas = {
+        f1: String.raw`x^{\pm}=\frac{x^{0}\pm x^{3}}{\sqrt{2}}`,
+        f2: String.raw`p^{\pm}=\frac{p^{0}\pm p^{3}}{\sqrt{2}}`,
+        f3: String.raw`p^{2}=p^{+}p^{-}-\mathbf{p}_{\perp}^{2}`,
+        f4: String.raw`P^{2}=P^{+}P^{-}-\mathbf{P}_{\perp}^{2}=M^{2}`,
+
+        f5: String.raw`A^{+}=0`,
+        f6: String.raw`H_{\mathrm{LF}}\equiv P^{-}=i\,\partial_{-}`,
+        f7: String.raw`\Psi(x^{+})=e^{-\,i\,P^{-}x^{+}}\Psi(0)`,
+        f8: String.raw`\int dx^{-}\,d^{2}\mathbf{x}_{\perp}\;\mathcal{L}_{\mathrm{LF}}(x)`,
+
+        f9:  String.raw`\mathcal{L}_{\mathrm{QED}}=-\tfrac{1}{4}\,F_{\mu\nu}F^{\mu\nu}+\bar{\psi}\big(i\gamma^{\mu}D_{\mu}-m\big)\psi`,
+        f10: String.raw`D_{\mu}=\partial_{\mu}+i\,e\,A_{\mu}`,
+        f11: String.raw`T_{x^{+}}\!\big\{\phi(x_{1})\,\phi(x_{2})\big\}`,
+        f12: String.raw`\partial_{\pm}=\dfrac{\partial_{0}\pm\partial_{3}}{\sqrt{2}}`,
+
+        // Light-front equal-$x^+$ commutator (free scalar)
+        f13: String.raw`\big[\phi(x),\,\partial_{-}\phi(y)\big]_{\,x^{+}=y^{+}} = i\,\delta\!\big(x^{-}-y^{-}\big)\,\delta^{(2)}\!\big(\mathbf{x}_{\perp}-\mathbf{y}_{\perp}\big)`
+      };
+
+      const displayIds = new Set(['f1','f2','f3','f4','f13']);
+
+      for (const [id, tex] of Object.entries(formulas)) {
+        const el = document.getElementById(id);
+        if (!el) continue;
+        katex.render(tex, el, { displayMode: displayIds.has(id) });
+      }
+
+      // Fade in once rendered
+      document.getElementById('formula-layer').style.opacity = '1';
+    };
+
+    if (window.katex) {
+      katexRenderAll();
+    } else {
+      window.addEventListener('load', () => {
+        if (window.katex) katexRenderAll();
+      });
+    }
+
+    // 2) Canvas animation (front-form visuals + axes)
+    const canvas = document.getElementById('frontformwall');
+    const ctx = canvas.getContext('2d');
+    function resize() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    resize();
+    window.addEventListener('resize', resize);
+    const lerp = (a, b, t) => a + (b - a) * t;
+
+    // Draw an axis with ticks and arrowhead
+    function drawAxis(cx, cy, angle, length, opts) {
+      const {
+        color = "#dc2a31",
+        width = 5,
+        alpha = 0.35,
+        tickEvery = 90,
+        tickSize = 9,
+        tickAlpha = 0.30,
+        dashed = false,
+        arrow = true,
+        label = "",
+        labelOffset = 22,
+        labelAlpha = 0.9,
+        labelSize = 18
+      } = opts || {};
+
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(angle);
+
+      // Main line
+      ctx.beginPath();
+      ctx.moveTo(-length, 0);
+      ctx.lineTo(length, 0);
+      ctx.lineWidth = width;
+      ctx.globalAlpha = alpha;
+      ctx.strokeStyle = color;
+      if (dashed) ctx.setLineDash([12, 10]);
+      ctx.shadowColor = "#fc6d78";
+      ctx.shadowBlur = 14;
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.shadowBlur = 0;
+
+      // Ticks
+      ctx.globalAlpha = tickAlpha;
+      ctx.lineWidth = Math.max(2, width * 0.45);
+      const nTicks = Math.floor((length * 2) / tickEvery);
+      for (let i = -nTicks; i <= nTicks; i++) {
+        const x = i * tickEvery;
+        if (Math.abs(x) > length) continue;
+        ctx.beginPath();
+        ctx.moveTo(x, -tickSize);
+        ctx.lineTo(x, +tickSize);
+        ctx.strokeStyle = color;
+        ctx.stroke();
+      }
+
+      // Arrowheads
+      if (arrow) {
+        ctx.globalAlpha = alpha;
+        const ah = Math.max(10, width * 2.5);
+        const aw = Math.max(8, width * 1.6);
+        // + end
+        ctx.beginPath();
+        ctx.moveTo(length, 0);
+        ctx.lineTo(length - ah, +aw);
+        ctx.lineTo(length - ah, -aw);
+        ctx.closePath();
+        ctx.fillStyle = color;
+        ctx.fill();
+        // - end
+        ctx.beginPath();
+        ctx.moveTo(-length, 0);
+        ctx.lineTo(-length + ah, +aw);
+        ctx.lineTo(-length + ah, -aw);
+        ctx.closePath();
+        ctx.fill();
+      }
+
+      // Label near + end
+      if (label) {
+        ctx.globalAlpha = labelAlpha;
+        ctx.fillStyle = color;
+        ctx.font = `bold ${labelSize}px Segoe UI, Arial, sans-serif`;
+        ctx.textAlign = "left";
+        ctx.textBaseline = "middle";
+        ctx.fillText(label, length + labelOffset, 0);
+      }
+
+      ctx.restore();
+    }
+
+    function drawLightFrontPlane(t, w, h) {
+      const nPlanes = 2;
+      for (let i = 0; i < nPlanes; ++i) {
+        ctx.save();
+        const z = Math.sin(t / 900 + i * 2.3 + Math.cos(t / 1170 + i)) * h / 2;
+        const yshift = lerp(-h / 2.3, h / 1.7, (Math.sin(t / 1120 + i) + 1) / 2);
+        ctx.translate(w / 2, h / 2 + yshift + Math.cos(t / 780 + i * 1.9) * 22);
+        ctx.rotate(0.32 + Math.sin(t / 600 + i) * 0.08);
+        const xs = -w * 0.65, xe = w * 0.65, ys = -36 - z * 0.09, ye = 41 + z * 0.09;
+        const grad = ctx.createLinearGradient(xs, ys, xe, ye);
+        grad.addColorStop(0, "#61d7fd0b");
+        grad.addColorStop(0.35, "#afeefff7");
+        grad.addColorStop(1, "#2ac3f911");
+        ctx.globalAlpha = 0.12 + 0.07 * Math.abs(Math.sin(t / 1100 + i));
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.moveTo(xs, ys);
+        ctx.lineTo(xe, ys + 28 + i * 9);
+        ctx.lineTo(xe, ye);
+        ctx.lineTo(xs, ye - 29 - i * 11);
+        ctx.closePath();
+        ctx.fill();
+        ctx.globalAlpha = 1; ctx.restore();
+      }
+    }
+
+    function drawPartonsAndWaves(t, w, h) {
+      const n = 16;
+      for (let i = 0; i < n; ++i) {
+        const frac = i / n;
+        const ang = frac * Math.PI * 1.15 + Math.sin(t / 1800 + i) * 0.21;
+        const r = lerp(w / 3.3, w / 1.9, Math.abs(Math.sin(t / 1030 + i * 2.6)));
+        const px = w / 2 + Math.cos(ang + t / 1600 + i) * r * 0.95;
+        const py = h / 2 + Math.sin(ang + t / 1500 - i) * r * lerp(0.55, 1.07, Math.abs(Math.sin(t / 1800 + i)));
+
+        // beam
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(w / 2, h / 2);
+        ctx.lineTo(px, py);
+        ctx.strokeStyle = `rgba(${65 + i * 8}, ${220 - i * 8}, ${255 - Math.floor(255 * frac)}, 0.15)`;
+        ctx.lineWidth = 1.5 + 1.5 * Math.sin(t / 800 + i * 2);
+        ctx.shadowColor = "#acfff0";
+        ctx.shadowBlur = 7 + Math.sin(t / 900 + i) * 9;
+        ctx.stroke();
+        ctx.shadowBlur = 0; ctx.restore();
+
+        // dot
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(px, py, 11.9 + Math.sin(t / 890 + i) * 2.2, 0, Math.PI * 2);
+        const g = ctx.createRadialGradient(px, py, 2, px, py, 13.2);
+        g.addColorStop(0, "#eafcff");
+        g.addColorStop(0.6, "#61c8ffcc");
+        g.addColorStop(1, "#12182800");
+        ctx.fillStyle = g;
+        ctx.globalAlpha = 0.93 - 0.15 * Math.abs(Math.sin(t / 480 + i));
+        ctx.shadowColor = "#d5f2ffc0";
+        ctx.shadowBlur = 13;
+        ctx.fill();
+        ctx.shadowBlur = 0; ctx.globalAlpha = 1; ctx.restore();
+      }
+    }
+
+    function drawWavefronts(t, w, h) {
+      const lines = 7;
+      for (let k = 0; k < lines; k++) {
+        ctx.save();
+        const angle = 0.24 + Math.sin(t / 840 + k) * 0.11;
+        ctx.translate(w / 2, h / 2 + Math.sin(t / 1450 + k) * h / 9);
+        ctx.rotate(angle);
+        ctx.beginPath();
+        const osc = Math.sin(t / 330 + k) * 33;
+        for (let x = -w / 2.1; x < w / 2.1; x += 8) {
+          const yy = osc * Math.sin(x / 105 + t / 230 + k * 0.6);
+          ctx.lineTo(x, 60 + yy + k * 23);
+        }
+        ctx.globalAlpha = 0.13 + 0.07 * Math.sin(t / 1300 + k * 3);
+        ctx.strokeStyle = `rgba(133, 255, 251, 0.47)`;
+        ctx.lineWidth = 2.3 + Math.sin(t / 260 + k) * 2.5;
+        ctx.shadowColor = "#d7f8faa6";
+        ctx.shadowBlur = 9 + 3 * Math.sin(t / 880 + k);
+        ctx.stroke();
+        ctx.shadowBlur = 0; ctx.restore();
+      }
+    }
+
+    function drawLightCone(t, w, h) {
+      const cx = w / 2, cy = h / 2;
+      ctx.save();
+      for (let cone = 0; cone < 2; ++cone) {
+        ctx.globalAlpha = 0.10;
+        ctx.beginPath();
+        for (let theta = -Math.PI / 5; theta <= Math.PI / 5; theta += Math.PI / 36) {
+          const r = (cone === 0 ? 1 : -1) * h / 2.45;
+          const px = cx + Math.sin(theta) * Math.abs(r);
+          const py = cy + Math.cos(theta) * r;
+          if (theta === -Math.PI / 5) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+        }
+        ctx.arc(cx, cy, 2, 0, Math.PI * 2);
+        ctx.closePath();
+        ctx.fillStyle = cone === 0 ? "#ecfffdbb" : "#ecfffdaa";
+        ctx.shadowColor = "#fdfeffd6";
+        ctx.shadowBlur = 13;
+        ctx.fill();
+        ctx.globalAlpha = 1; ctx.shadowBlur = 0;
+      }
+      // axes for reference (gray)
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(cx, cy - h / 3.2);
+      ctx.lineTo(cx, cy + h / 3.2);
+      ctx.moveTo(cx - w / 3.2, cy);
+      ctx.lineTo(cx + w / 3.2, cy);
+      ctx.strokeStyle = "#f5fdffc2";
+      ctx.globalAlpha = 0.12;
+      ctx.lineWidth = 3.2;
+      ctx.stroke();
+      ctx.restore();
+      ctx.restore();
+    }
+
+    // Animate KaTeX DOM nodes
+    const formulaSpecs = [
+      { id: 'f1',  ax: 0.30, ay: 0.30, rx: 0.33, ry: 0.22, rot:  0.00, speed: 0.9,  op: 0.95 },
+      { id: 'f2',  ax: 0.70, ay: 0.32, rx: 0.28, ry: 0.20, rot:  0.03, speed: 1.0,  op: 0.90 },
+      { id: 'f3',  ax: 0.28, ay: 0.68, rx: 0.30, ry: 0.24, rot: -0.02, speed: 0.85, op: 0.92 },
+      { id: 'f4',  ax: 0.74, ay: 0.70, rx: 0.32, ry: 0.23, rot:  0.01, speed: 0.95, op: 0.88 },
+
+      { id: 'f5',  ax: 0.18, ay: 0.48, rx: 0.22, ry: 0.16, rot:  0.05, speed: 1.15, op: 0.80 },
+      { id: 'f6',  ax: 0.86, ay: 0.46, rx: 0.22, ry: 0.16, rot: -0.05, speed: 1.25, op: 0.82 },
+      { id: 'f7',  ax: 0.50, ay: 0.18, rx: 0.20, ry: 0.14, rot:  0.00, speed: 0.80, op: 0.86 },
+      { id: 'f8',  ax: 0.50, ay: 0.84, rx: 0.22, ry: 0.14, rot:  0.00, speed: 0.90, op: 0.86 },
+
+      { id: 'f9',  ax: 0.12, ay: 0.16, rx: 0.18, ry: 0.12, rot:  0.03, speed: 0.75, op: 0.78 },
+      { id: 'f10', ax: 0.88, ay: 0.14, rx: 0.18, ry: 0.12, rot: -0.03, speed: 0.75, op: 0.78 },
+      { id: 'f11', ax: 0.14, ay: 0.84, rx: 0.16, ry: 0.12, rot: -0.04, speed: 0.90, op: 0.76 },
+      { id: 'f12', ax: 0.86, ay: 0.86, rx: 0.16, ry: 0.12, rot:  0.04, speed: 0.90, op: 0.76 },
+
+      { id: 'f13', ax: 0.50, ay: 0.50, rx: 0.26, ry: 0.18, rot:  0.00, speed: 0.70, op: 0.86 }
+    ];
+
+    function layoutFormulas(t) {
+      const w = window.innerWidth, h = window.innerHeight;
+      for (const s of formulaSpecs) {
+        const el = document.getElementById(s.id);
+        if (!el) continue;
+        const x = (s.ax + s.rx * Math.sin(t * 0.0007 * s.speed + s.ax * 7)) * w;
+        const y = (s.ay + s.ry * Math.cos(t * 0.0008 * s.speed + s.ay * 7)) * h;
+        const r = s.rot + 0.06 * Math.sin(t * 0.0005 + s.ay * 5);
+        const op = s.op - 0.15 * Math.abs(Math.sin(t * 0.0009 + s.ax * 9));
+        el.style.transform = `translate(-50%, -50%) translate(${x}px, ${y}px) rotate(${r}rad)`;
+        el.style.opacity = String(Math.max(0.35, Math.min(0.98, op)));
+      }
+    }
+
+    function animate() {
+      const t = performance.now();
+      const w = canvas.width, h = canvas.height;
+      ctx.clearRect(0, 0, w, h);
+
+      // Dynamic axis angle slightly follows the light-front sheet angle
+      const axisAngle = 0.32 + Math.sin(t / 600) * 0.08;
+      const axisLen = Math.min(w, h) * 0.75;
+
+      // Axes (red): x^+ solid, x^- perpendicular dashed
+      drawAxis(w / 2, h / 2, axisAngle, axisLen, {
+        color: "#dc2a31", width: 5.5, alpha: 0.36, tickEvery: 90, tickSize: 10,
+        dashed: false, arrow: true, label: "x⁺", labelOffset: 16, labelAlpha: 0.95, labelSize: 22
+      });
+      drawAxis(w / 2, h / 2, axisAngle + Math.PI / 2, axisLen * 0.9, {
+        color: "#ff6a70", width: 4, alpha: 0.28, tickEvery: 90, tickSize: 8,
+        dashed: true, arrow: true, label: "x⁻", labelOffset: 14, labelAlpha: 0.9, labelSize: 20
+      });
+
+      drawLightFrontPlane(t, w, h);
+      drawWavefronts(t, w, h);
+      drawPartonsAndWaves(t, w, h);
+      drawLightCone(t, w, h);
+
+      layoutFormulas(t);
+      requestAnimationFrame(animate);
+    }
+    animate();
+  </script>
+</body>
+</html>
